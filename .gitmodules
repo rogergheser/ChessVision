@@ -1,0 +1,6 @@
+[submodule "chesscog"]
+	path = chesscog
+	url = https://github.com/georg-wolflein/chesscog
+[submodule "end-to-end-chess-recognition"]
+	path = end-to-end-chess-recognition
+	url = https://github.com/ThanosM97/end-to-end-chess-recognition

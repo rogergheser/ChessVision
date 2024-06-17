@@ -1,3 +1,8 @@
+*-venv/
+chesscog/
+end-to-end-chess-recognition/
+end-to-end-chess-recognition/dataset/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
