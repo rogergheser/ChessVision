@@ -28,8 +28,7 @@ This implementation can filter out the following:
 * Pawns appearing on the first or last rank are filtered out.
 * Pieces appearing on squares that are unreachable via legal moves are removed.
 
-[](source/opera_game.gif)
-
+![GIF](source/opera_game.gif)
 
 # Installation
 ```bash
@@ -41,3 +40,5 @@ If you run into installation issues with cairosvg and avoit issues run
 ```bash
 conda install cairo pango gdk-pixbuf libffi cairosvg
 ```
+
+[def]: source/opera_game.gif
