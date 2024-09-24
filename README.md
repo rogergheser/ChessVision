@@ -1,3 +1,14 @@
+# Installation
+```bash
+pip install -r requirements.txt
+pip install cairosvg
+```
+
+If you run into installation issues with cairosvg and avoit issues run
+```bash
+conda install cairo pango gdk-pixbuf libffi cairosvg
+```
+
 # ChessVision
 The purpose of this project is to parse a complete chess game from a video.
 To tackle this problem I addressed the simpler issue of chess position recognition by exploiting a pre-trained model by Georg Wölflein et al. and fine tuning.
@@ -9,8 +20,6 @@ The dataset will be made publicly available, it consists of pictures taken from 
 * Alekhine - Nimzowitsch (1930)
 * Tal - Hjartarson 1987
 
-<iframe id="6946892" allowtransparency="true" frameborder="0" style="width:100%;border:none;" src="//www.chess.com/emboard?id=6946892"></iframe><script>window.addEventListener("message",e=>{e['data']&&"6946892"===e['data']['id']&&document.getElementById(`${e['data']['id']}`)&&(document.getElementById(`${e['data']['id']}`).style.height=`${e['data']['frameHeight']+37}px`)});</script>
-
 
 # Inference
 The inference process is still faulty, but the occupancy classifier mostly detects all pieces and rarely includes false negatives. This means that illogical board states can be parsed out.
@@ -19,6 +28,7 @@ This implementation can filter out the following:
 * Pawns appearing on the first or last rank are filtered out.
 * Pieces appearing on squares that are unreachable via legal moves are removed.
 
+[](source/opera_game.gif)
 
 
 # Installation
