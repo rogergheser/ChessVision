@@ -28,7 +28,7 @@ This implementation can filter out the following:
 * Pawns appearing on the first or last rank are filtered out.
 * Pieces appearing on squares that are unreachable via legal moves are removed.
 
-![GIF](source/opera_game.gif)
+<img src='source/opera_game.gif' width=50%>
 
 # Installation
 ```bash
