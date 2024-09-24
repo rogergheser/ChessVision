@@ -1,0 +1,10 @@
+recap
+opencv-python
+scikit-learn
+matplotlib
+torch
+torchvision
+numpy
+googledrivedownloader
+chess
+pillow

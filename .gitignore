@@ -7,6 +7,8 @@ results/**
 results/*
 .DS_Store
 **/.DS_Store
+TODO.txt
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
