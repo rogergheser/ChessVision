@@ -8,3 +8,6 @@ numpy
 googledrivedownloader
 chess
 pillow
+gdown
+pandas
+seaborn
