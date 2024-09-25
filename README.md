@@ -45,16 +45,33 @@ The dataset will be made publicly available, it consists of pictures taken from 
 
 # Usage
 For sheer training, evaluating and testing or corner detection the model please refer to the [chesscog](https://github.com/georg-wolflein/chesscog) repository. 
-To run the inference process on a sequence of images, run main.py with the path to the folder containing the images as an argument.
+After populating the train partition of the dataset (data://transfer_learning/train) with images run the following:
+```bash
+python -m chesscog.transfer_learning.create_dataset
+python -m chesscog.transfer_learning.train
+python -m chesscog.transfer_learning.evaluate 
+# this will return some basic statistics for the model
+python stats.py
+# this will generate a confusion matrix in results/
+```
+
+If you find the results to be satisfactory, copy the model from runs/ to models://transfer_learning/ and run the main script. This will work on a sequence of images, run main.py with the path to the folder containing the images as an argument.
 ```bash
 python main.py path/to/folder
 ```
 
-# Evaluation
+# Future Work
+The project is still in progress. The following steps are to be implemented:
+
+## Evaluation
 An automatic evaluation and benchmarking process is yet to be implemented.
 
-# Parsing from video
+## Parsing from video
 The final goal of this project is to parse a chess game from a video. This work is still in progress and yet to be devoloped.
+
+## Testing and Evaluation
+The ability of the model to generalise is to be better tested. I plan to test the model by training it on different chess boards and chess sets and test how many shots of the game chessboard are needed to parse the game successfully. i.e. If the game is played on a green-and-white board, how many shots of the board are needed to parse occupancy reliably.
+The same kind of experiment is to be repeated on different chess sets.
 
 # Inference Results
 The inference process is still faulty, but the occupancy classifier mostly detects all pieces and rarely includes false negatives. This means that illogical board states can be parsed out.
