@@ -38,7 +38,7 @@ def display_images():
             if cv2.waitKey(0) & 0xFF == ord('q'):
                 break
         else:
-            time.sleep(0.3)
+            time.sleep(0.1)
 
     cv2.destroyAllWindows()
 

@@ -1,7 +1,14 @@
 # ChessVision
+
 This project combines the efforts of [chesscog](https://github.com/georg-wolflein/chesscog) by Georg Wölflein and some of my own work which consists of fine-tuning the model, creting a small dataset and adding some chess game logic to remove inconsistencies in the board state.
 
-This project is still in progress. The final objectives is to parse the full game from video, but the current state of the project is to parse a game from a sequence of images taken by a user. A whole pipeline to select the video frames and process them in real time is still to be implemented.
+This work is still in progress. The final objectives is to parse the full game from video, but the current state of the project is to parse a game from a sequence of images taken by a user. A whole pipeline to select the video frames and process them in real time is still to be implemented.
+<div style='width=100%;display:flex;align-items:center;'> 
+<div style='margin:auto;width:30%;'>
+    <h3>Morphy's Opera Game</h3>
+    <img src='source/opera_game.gif'>
+</div>
+</div>
 
 # Overview
 The model consists of a pretrained occupancy classifier (ResNet) and piece classifier (InceptionV3). The model was trained by the authors of chesscog on a dataset of ~5,000 synthetically generated images (3D renderings of chess positions from different angles and with varying light).
@@ -10,7 +17,10 @@ Some additional images were taken to test the model on a different chess boards 
 
 
 # Installation
+To run the project I suggest using python 3.8.
 ```bash
+conda create -n chessvision python=3.8
+conda activate chessvision
 pip install -r requirements.txt
 pip install cairosvg
 ```
@@ -50,14 +60,19 @@ The inference process is still faulty, but the occupancy classifier mostly detec
 
 <img src='source/confusion_matrix.png' width=80%>
 
+As the confusion matrix shows, the piece classifier mostly has trouble discriminating between queens, bishops and pawns. This is due to their similarity from a top-view perspective. Also, the model has more trouble classifying the black pieces as they too matte.
+
+
 This implementation can filter out the following:
 * Piece moving from one square to another, but on the second board state it is misclassified.
 * Pawns appearing on the first or last rank are filtered out.
 * Pieces appearing on squares that are unreachable via legal moves are removed.
 
-
-
-<img src='source/opera_game.gif' width=50%>
-
-
-[def]: source/opera_game.gif
+<ul style='display:grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;list-style:none;'>
+    <li style='margin: 2px;'>Sample initial position<img src='source/1-2.png' width=100%></li>
+    <li style='margin: 2px;'>Example of misclassified piece corrected with logic<img src='source/4-5.png' width=100%></li>
+    <li style='margin: 2px;'>Chess move recognised despite two mistakes by the classifier<img src='source/12-13.png' width=100%></li>
+    <li style='margin: 2px;'>A beautiful checkmating sacrifice<img src='source/30-31.png' width=100%></li>
+    <li style='margin: 2px;'>The disappearing and reappearing f2-pawn<img src='source/28-29.png' width=100%></li>
+    <li style='margin: 2px;'>Same issue<img src='source/29-30.png' width=100%></li>
+</ul>
