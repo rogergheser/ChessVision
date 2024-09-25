@@ -3,15 +3,13 @@ import tarfile
 import os
 
 # Google Drive file ID from the tar file's shareable link
-file_id = "17JB6Gs1zAyzGcsdJgqlqwyjR0OXZye6W"  # Update this with the actual tar file ID
 output_filename = "dataset.tar.gz"  # Set the filename for download
 
 # Set the root destination folder where the files will be extracted
 root_dst_folder = "data"
 
 # Construct Google Drive download URL
-drive_link = f"https://drive.google.com/uc?id={file_id}"
-
+drive_link = 'https://drive.google.com/file/d/1ZavI7H1VDvWCskfFXZmTSkyB1xYP3hT1/view?usp=sharing'
 # Download the file from Google Drive
 print(f"Downloading dataset from Google Drive...")
 gdown.download(drive_link, output_filename, quiet=False)
