@@ -1,4 +1,9 @@
 # ChessVision
+1. [Overview](#Overview)
+2. [Installation](#Installation)
+3. [Usage](#Usage)
+4. [Evaluation](#Evaluation)
+
 
 This project combines the efforts of [chesscog](https://github.com/georg-wolflein/chesscog) by Georg Wölflein and some of my own work which consists of fine-tuning the model, creting a small dataset and adding some chess game logic to remove inconsistencies in the board state.
 
@@ -17,6 +22,18 @@ Some additional images were taken to test the model on a different chess boards 
 
 Please note that the system's main weakness is the RANSAC board localisation. To address the issue of too many lines being in the image I leveraged background removal by [rembg](https://github.com/danielgatis/rembg). If the system fails try taking better shots of the image by changing the angle. Having a clean and realiable background leads to faster inference.
 
+
+## ChessVision
+The purpose of this project is to parse a complete chess game from a video.
+To tackle this problem I addressed the simpler issue of chess position recognition by exploiting a pre-trained model by Georg Wölflein et al. and fine tuning.
+
+The repo suggests taking a picture of the starting position from both sides. I deemed the results to be unsatisfactory, thus repeating the process with a larger pool of images. To ease the process of obtaining labels (FENs) for positions, I took pictures of chess games and parse the FEN directly from the PGN.
+
+The dataset will be made publicly available, it consists of pictures taken from both perspectives (white and black) move-by-move of famous chess games, including:
+* Morphy's Opera Game
+* Alekhine - Nimzowitsch (1930)
+* Tal - Hjartarson 1987
+
 # Installation
 To run the project I suggest using python 3.8.
 ```bash
@@ -30,17 +47,6 @@ If you run into installation issues with cairosvg and avoit issues run
 ```bash
 conda install cairo pango gdk-pixbuf libffi cairosvg
 ```
-
-# ChessVision
-The purpose of this project is to parse a complete chess game from a video.
-To tackle this problem I addressed the simpler issue of chess position recognition by exploiting a pre-trained model by Georg Wölflein et al. and fine tuning.
-
-The repo suggests taking a picture of the starting position from both sides. I deemed the results to be unsatisfactory, thus repeating the process with a larger pool of images. To ease the process of obtaining labels (FENs) for positions, I took pictures of chess games and parse the FEN directly from the PGN.
-
-The dataset will be made publicly available, it consists of pictures taken from both perspectives (white and black) move-by-move of famous chess games, including:
-* Morphy's Opera Game
-* Alekhine - Nimzowitsch (1930)
-* Tal - Hjartarson 1987
 
 
 # Usage
