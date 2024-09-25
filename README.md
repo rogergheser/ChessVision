@@ -15,6 +15,7 @@ The model consists of a pretrained occupancy classifier (ResNet) and piece class
 After investigating the limits of this approach I shot pictures of 3 chess games, from both player perspectives, move-by-move. The dataset consists of 358 images, 179 for each perspective. 
 Some additional images were taken to test the model on a different chess boards and chess sets than the one used in the training set.
 
+Please note that the system's main weakness is the RANSAC board localisation. To address the issue of too many lines being in the image I leveraged background removal by [rembg](https://github.com/danielgatis/rembg). If the system fails try taking better shots of the image by changing the angle. Having a clean and realiable background leads to faster inference.
 
 # Installation
 To run the project I suggest using python 3.8.
