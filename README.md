@@ -3,9 +3,8 @@
   <h1 style="border-bottom: none;">Computer Vision project: 3D CAMERA CALIBRATION (geometry and 3D reconstruction)</h1>
   <img src="https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54" alt="Python"/>
   <img src="https://img.shields.io/badge/Numpy-013243?style=flat&logo=numpy&logoColor=white" alt="NumPy"/>
-  <img src="https://img.shields.io/badge/Pytorch-ffa500?style=flat&logo=numpy&logoColor=white" alt="Pytorch"/>
+  <img src="https://img.shields.io/badge/Pytorch-ffa500?style=flat&logo=pytorch&logoColor=white" alt="Pytorch"/>
   <img src="https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white" alt="OpenCV"/>
-  <img src="https://img.shields.io/badge/Pillow-00ff00?style=flat&logo=opencv&logoColor=white" alt="Pillow"/>
 </div>
 1. [Overview](#Overview)
 2. [Installation](#Installation)
