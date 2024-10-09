@@ -8,6 +8,8 @@ import threading
 import queue
 import time
 import rembg
+import argparse
+import tqdm
 sys.path.append('./chesscog')
 from data_processing.fens_from_png import fens_from_pgn
 from data_processing.rename import parse_for_sorting
@@ -18,16 +20,20 @@ from chesscog.piece_classifier.download_model import ensure_model as ensure_piec
 from recap import URI
 from pathlib import Path
 from chess import Status
+from stats import Metrics
 from PIL import Image
 from highlight_moves import *
 
 DATADIR = 'data/chess_games'
 PGN_DIR = 'data/PGNS/chess_games'
+RES_DIR = 'results/'
 MAX_RETRIES = 6
 BOARD_SIZE = 400
 MAX_QUEUE_LEN = 40
 MAX_ERRORS = 6
+EVAL = True
 failed_execution = False
+metrics = Metrics()
 image_queue = queue.Queue()
 
 def display_images():
@@ -196,8 +202,9 @@ def check_castling(diff_map: list, board1: chess.Board, board2: chess.Board):
 
     diff_map = [diff for diff in diff_map if diff[0] not in squares]
     diff_map.append((squares[0], 'K' if white_turn else 'k', 'empty'))
-    diff_map.append((squares[2], 'R' if white_turn else 'r', 'empty'))
-    board2 = board1.copy().push(chess.Move(squares[0], squares[2]))
+    diff_map.append((squares[3], 'empty', 'R' if white_turn else 'r'))
+    board2 = board1.copy()
+    board2.push(chess.Move(squares[0], squares[2]))
     
     return diff_map, board1, board2
 
@@ -262,9 +269,6 @@ def polish_results(board1: chess.Board, board2: chess.Board, path1, path2, white
     This function polishes the results by comparing the two board states and returning the diff_map, and the two board states
     """
     diff_map = get_diff_map(board1, board2)
-    
-    if len(diff_map) == 0:
-        print("debug")
 
     filters = [same_color_diff_piece, appearing_piece, pawn_constraints]
 
@@ -304,7 +308,7 @@ def polish_results(board1: chess.Board, board2: chess.Board, path1, path2, white
         # todo handle this case
         pass
     else:
-        raise ValueError('Invalid board states detected. Only {} squares differ between the two board states.\n{}\n{}Exiting...'
+        raise ValueError('Invalid board states detected. Only {} squares differ between the two board states.\n{}\n{}\nExiting...'
                          .format(len(diff_map), path1, path2))
     
     return diff_map, board1, board2
@@ -430,6 +434,8 @@ def process_game(game, classifier_folder):
     :param: game: dict - contains the game name, pgn file, and image file paths for the game
     This function processes a game by running inference on the images and saving the results.
     """
+    metrics.reset()
+
     recognizer = ChessRecognizer(classifier_folder)
     image_path1 = game['images'][0]
     if isinstance(image_path1, tuple):
@@ -437,6 +443,7 @@ def process_game(game, classifier_folder):
     image1 = cv2.imread(image_path1)
     image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2RGB)
     white_turn = True
+
     try:
         board1, *_ = recognizer.predict(image1, parse_turn(image_path1))
     except ChessboardNotLocatedException as e:
@@ -448,15 +455,25 @@ def process_game(game, classifier_folder):
             image1 = image1_nobg
             logging.info("Chessboard successfully located after background subtraction in image {}\n".format(image_path1))
         except ChessboardNotLocatedException as e:
-            logger.debug("Chessboard not located despite background subtraction in image {}\nConsider takin a better picture"
+            logger.debug("Chessboard not located despite background subtraction on first frame {}\nConsider takin a better picture"
                          .format(image_path1))
-            exit(1)
+            if not EVAL:
+                exit(1)
+            else:
+                board1 = chess.Board()
+                metrics.update_board(False)
         # remove background and try again
+
+    if EVAL:
+        metrics.update(gt_fen, board1.fen())
+
     fens = []
     board1 = chess.Board()
     fens.append(board1.fen())
 
-    for idx, image_path2 in enumerate(game['images'], 0):
+    loop = tqdm.tqdm(game['images'], desc='Processing Game {}'.format(game['name']), total=len(game['images']))
+
+    for idx, image_path2 in enumerate(loop):
         if idx == 0:
             continue
         if isinstance(image_path2, tuple):
@@ -480,22 +497,49 @@ def process_game(game, classifier_folder):
             except ChessboardNotLocatedException as e:
                 logger.debug("Chessboard not located despite background subtraction in image {}\nConsider takin a better picture"
                              .format(image_path2))
+                if not EVAL:
+                    exit(1)
+                else:
+                    board2 = chess.Board(gt_fen)
+                    fens.append(board2.fen())
+                    metrics.update_board(False)
+                    continue
+        try:
+            board2 = test_rejection(recognizer, board1, board2, image_path2)
+        except ChessboardNotLocatedException as e:
+            logger.debug("Chessboard not located in image {}\n".format(image_path2))
+            if not EVAL:
                 exit(1)
-
-
-        board2 = test_rejection(recognizer, board1, board2, image_path2)
-
+            else:
+                board2 = chess.Board(gt_fen)
+                metrics.update_board(False)
+                fens.append(gt_fen)
+                continue
         old_board = board2.copy()
 
         if board2 is None:
             logger.debug("Failed to converge to a solution for {}.\nExiting...".format(image_path2))
             raise ValueError("Failed to converge to a solution for {}.\nExiting...".format(image_path2))
-        
-        if board1.fen() == board2.fen():
-            print('debug')
 
-        diff_map, board1, board2 = polish_results(board1, board2, image_path1, image_path2, white_turn)
         
+        if POSTPROCESS:
+            try:
+                diff_map, board1, board2 = polish_results(board1, board2, image_path1, image_path2, white_turn)
+            except ValueError as e:
+                logger.debug(e)
+                if not EVAL:
+                    exit(1)
+                else:
+                    if board2 is None:
+                        board2 = chess.Board(gt_fen)
+                        metrics.update_board(False)
+                        fens.append(gt_fen)
+                    else:
+                        metrics.update(gt_fen, board2.fen())
+                        fens.append(board2.fen())
+                    loop.set_postfix({'mAP': metrics.mAP()})
+                    continue
+
         fens.append(board2.fen())
         
         
@@ -505,31 +549,42 @@ def process_game(game, classifier_folder):
         
         if not os.path.exists(os.path.join('results', game['name'])):
             os.makedirs(os.path.join('results', game['name']))
-        cv2.imwrite('results/{}/{}-{}.png'.format(game['name'], idx-1, idx), final_frame)
-        while image_queue.qsize() > MAX_QUEUE_LEN:
-            time.sleep(0.1)
+        cv2.imwrite('{}/{}/{}-{}.png'.format(RES_DIR, game['name'], idx-1, idx), final_frame)
 
-        image_queue.put(final_frame)
+        if not EVAL_ONLY:
+            while image_queue.qsize() > MAX_QUEUE_LEN:
+                time.sleep(0.1)
+            image_queue.put(final_frame)
         
+        loop.set_postfix({'mAP': metrics.mAP()})
+
         image_path1 = image_path2
         image1 = image2
         board1 = board2
 
     time.sleep(0.01)
     
-    with open('results/{}.txt'.format(game['name']), 'w') as f:
+    
+    metrics.confusion_matrix()
+    metrics.draw_confusion_matrix(game['name'])
+
+    with open('{}/{}.txt'.format(RES_DIR, game['name']), 'w') as f:
+        f.write("Recognised Boards:" + str(metrics.recognised_boards()) + "\n")
+        f.write("Occupancy stats:\n")
+        f.write(str(metrics.occupancy_stats()))
+        f.write("\n\nPiece stats:\n")
+        f.write(str(metrics.piece_stats()))
+        f.write("\n\nmAP: " + str(metrics.mAP()))
+
+    with open('FEN-{}/{}.txt'.format(RES_DIR, game['name']), 'w') as f:
         f.write('\n'.join(fens))
     
-    # TODO if PGN ground truth available compute a pgn and compare the results
-    
 
-def main(dataset):
+def main(dataset, classifier_folder):
     classifier_folder = URI("models://transfer_learning")
 
     for game in dataset:
-        if game[0] == 'M':
-            continue
-        logger.info("Processing game (N. Images:{}): {}\n".format(len(dataset[game]['images']), dataset[game]))
+        logger.info("Processing game {}(N. Images:{})\n".format(dataset[game]['name'], len(dataset[game]['images'])))
         try:
             process_game(dataset[game], classifier_folder)
         except Exception as e:
@@ -541,7 +596,33 @@ def main(dataset):
 
 
 if __name__ == '__main__':
-    # parse arguments TODO
+    parser = argparse.ArgumentParser(description='Chesscog Inference')
+    parser.add_argument('--datadir', type=str, default='data/chess_games', help='Path to directory containing images')
+    parser.add_argument('--pgndir', type=str, default='data/PGNS/chess_games', help='Path to directory containing PGN files')
+    parser.add_argument('--noeval', action='store_true', default=False, help='Do not evaluate the model')
+    parser.add_argument('--resdir', type=str, default='results/', help='Path to directory to save the results')
+    parser.add_argument('--nopostprocess', action='store_true', default=False, help='Do not post process the inference results')
+    parser.add_argument('--eval_only', action='store_true', default=False, help='Only evaluate the model, no image display')
+    parser.add_argument('--model_dir', type=str, default='models://transfer_learning', help='Path to directory containing the models')
+    parser.add_argument('--max_retries', type=int, default=6, help='Maximum number of retries to converge to a solution')
+    parser.add_argument('--board_size', type=int, default=400, help='Size of the chessboard for output images')
+    parser.add_argument('--max_queue_len', type=int, default=40, help='Maximum length of the queue')
+    parser.add_argument('--max_errors', type=int, default=6, help='Maximum number of errors allowed in the diff_map')
+    args = parser.parse_args()
+
+    
+    DATADIR = args.datadir
+    PGN_DIR = args.pgndir
+    EVAL = not args.noeval # TODO INTEGRATE
+    RES_DIR = args.resdir
+    POSTPROCESS = not args.nopostprocess
+    EVAL_ONLY = args.eval_only
+    classifier_folder = args.model_dir
+    MAX_RETRIES = args.max_retries
+    BOARD_SIZE = args.board_size
+    MAX_QUEUE_LEN = args.max_queue_len
+    MAX_ERRORS = args.max_errors
+
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
@@ -556,12 +637,18 @@ if __name__ == '__main__':
 
     logger.addHandler(stdout_handler)
     logger.addHandler(file_handler)
-    
+
+    for arg in vars(args):
+        logger.info('{}: {}\n'.format(arg, getattr(args, arg)))
+        print('{}: {}\n'.format(arg, getattr(args, arg)))
+
     dataset = test_loader = get_dataloader(DATADIR, PGN_DIR)
 
-    inference_thread = threading.Thread(target=main, args=(dataset,), daemon=True)
-    inference_thread.start()
+    if not EVAL_ONLY:
+        inference_thread = threading.Thread(target=main, args=(dataset, classifier_folder), daemon=True)
+        inference_thread.start()
+        display_images()
+    else:
+        main(dataset, classifier_folder)
 
-    display_images()
-    
     inference_thread.join()
