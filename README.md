@@ -1,6 +1,5 @@
-# ChessVision
 <div align="center">
-  <h1 style="border-bottom: none;">Computer Vision project: 3D CAMERA CALIBRATION (geometry and 3D reconstruction)</h1>
+  <h1 style="border-bottom: none;">Computer Vision project: ChessVision (Chess Game Reconstruction from Video)</h1>
   <img src="https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54" alt="Python"/>
   <img src="https://img.shields.io/badge/Numpy-013243?style=flat&logo=numpy&logoColor=white" alt="NumPy"/>
   <img src="https://img.shields.io/badge/Pytorch-ffa500?style=flat&logo=pytorch&logoColor=white" alt="Pytorch"/>
