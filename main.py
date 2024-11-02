@@ -57,10 +57,14 @@ def get_dataloader(datadir, pgn_dir):
     It then returns a dictionary containing Game Name, PGN File, Image File paths for each game with a corresponding FEN.
     """
     res = {}
+    skip_games = ['.DS_Store']
 
     for dir in os.listdir(datadir):
-        if dir == '.DS_Store':
+        if dir in skip_games:
             continue
+        if '.DS_Store' in os.listdir(os.path.join(datadir, dir)):
+            os.remove(os.path.join(datadir, dir, '.DS_Store'))
+        
         res[dir] = {'name': dir, 'images': []}
         fens = None
         if pgn_dir is not None:
@@ -304,12 +308,14 @@ def polish_results(board1: chess.Board, board2: chess.Board, path1, path2, white
                 board2 = new_board2
     elif len(diff_map) == 0:
         if board1().fen() == board2.fen():
-            raise ValueError('No differences detected between the two board states.\nExiting...')
-        # todo handle this case
-        pass
+            return diff_map, board1, board2
+        #     raise ValueError('No differences detected between the two board states.\nExiting...')
+        # # todo handle this case
+        # pass
     else:
-        raise ValueError('Invalid board states detected. Only {} squares differ between the two board states.\n{}\n{}\nExiting...'
-                         .format(len(diff_map), path1, path2))
+        return diff_map, board1, board2
+        # raise ValueError('Invalid board states detected. Only {} squares differ between the two board states.\n{}\n{}\nExiting...'
+        #                  .format(len(diff_map), path1, path2))
     
     return diff_map, board1, board2
 
@@ -350,9 +356,11 @@ def test_rejection(recognizer, board1, board2, image_path):
 
     if patience == 0:
         logger.debug('Failed to converge to a solution for {}.\nPlease change the image or fine tune the model better.\nExiting...')
-        raise ValueError('Failed to converge to a solution for {}.\nPlease change the image or fine tune the model better.\nExiting...'
-                         .format(image_path))
-    logger.debug('Successfully converged to a solution for {}.\n'.format(image_path))
+        # raise ValueError('Failed to converge to a solution for {}.\nPlease change the image or fine tune the model better.\nExiting...'
+        #                  .format(image_path))
+        board2 = None
+    else:
+        logger.debug('Successfully converged to a solution for {}.\n'.format(image_path))
 
     return board2
 
@@ -453,7 +461,7 @@ def process_game(game, classifier_folder):
         try:
             board1, *_ = recognizer.predict(image1_nobg, parse_turn(image_path1))
             image1 = image1_nobg
-            logging.info("Chessboard successfully located after background subtraction in image {}\n".format(image_path1))
+            logger.info("Chessboard successfully located after background subtraction in image {}\n".format(image_path1))
         except ChessboardNotLocatedException as e:
             logger.debug("Chessboard not located despite background subtraction on first frame {}\nConsider takin a better picture"
                          .format(image_path1))
@@ -471,7 +479,7 @@ def process_game(game, classifier_folder):
     board1 = chess.Board()
     fens.append(board1.fen())
 
-    loop = tqdm.tqdm(game['images'], desc='Processing Game {}'.format(game['name']), total=len(game['images']))
+    loop = tqdm.tqdm(game['images'], desc=game['name'], total=len(game['images']))
 
     for idx, image_path2 in enumerate(loop):
         if idx == 0:
@@ -484,7 +492,7 @@ def process_game(game, classifier_folder):
         image2 = cv2.imread(image_path2)
         image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2RGB)
 
-        try:    
+        try:
             board2, *_ = recognizer.predict(image2, parse_turn(image_path2))
         except ChessboardNotLocatedException as e:
             logger.debug("Chessboard not located in image {}\n".format(image_path2))
@@ -493,7 +501,8 @@ def process_game(game, classifier_folder):
             try:
                 board2, *_ = recognizer.predict(image2_nobg, parse_turn(image_path2))
                 image2 = image2_nobg
-                logging.info("Chessboard successfully located after background subtraction in image {}\n".format(image_path2))
+                logger.info("Chessboard successfully located after background subtraction in image {}\n".format(image_path2))
+                logger.debug("Chessboard successfully located after background subtraction in image {}\n".format(image_path2))
             except ChessboardNotLocatedException as e:
                 logger.debug("Chessboard not located despite background subtraction in image {}\nConsider takin a better picture"
                              .format(image_path2))
@@ -503,17 +512,26 @@ def process_game(game, classifier_folder):
                     board2 = chess.Board(gt_fen)
                     fens.append(board2.fen())
                     metrics.update_board(False)
+                    logger.info("Skipping...\n")
                     continue
         try:
-            board2 = test_rejection(recognizer, board1, board2, image_path2)
-        except ChessboardNotLocatedException as e:
-            logger.debug("Chessboard not located in image {}\n".format(image_path2))
+            _board = test_rejection(recognizer, board1, board2, image_path2)
+            if _board is None:
+                logger.debug("Chessboard not located in image {}\n".format(image_path2))
+                metrics.update(gt_fen, board2.fen())
+                metrics.update_board(False)
+                fens.append(gt_fen)
+                continue
+            else:
+                board2 = _board
+        except:
             if not EVAL:
                 exit(1)
             else:
                 board2 = chess.Board(gt_fen)
                 metrics.update_board(False)
                 fens.append(gt_fen)
+                logger.info("Skipping...\n")
                 continue
         old_board = board2.copy()
 
@@ -537,18 +555,26 @@ def process_game(game, classifier_folder):
                     else:
                         metrics.update(gt_fen, board2.fen())
                         fens.append(board2.fen())
-                    loop.set_postfix({'mAP': metrics.mAP()})
+                    occupancy_stats = metrics.occupancy_stats()
+                    piece_stats = metrics.piece_stats()
+                    loop.set_postfix({'mAP': metrics.mAP(), 'PiecePrec': piece_stats, 'OccF-1': occupancy_stats['f1']})
+                    logger.info("Skipping...\n")
                     continue
 
+        if EVAL:
+            metrics.update(gt_fen, board2.fen())
         fens.append(board2.fen())
-        
+            
         
         white_turn = not white_turn
         # SAVE & OUTPUT RESULTS
-        final_frame = visualise_results(board1, old_board, board2, image1, image2, diff_map) 
+        if POSTPROCESS:
+            final_frame = visualise_results(board1, old_board, board2, image1, image2, diff_map) 
+        else:
+            final_frame = visualise_results(board1, old_board, board2, image1, image2, {})
         
-        if not os.path.exists(os.path.join('results', game['name'])):
-            os.makedirs(os.path.join('results', game['name']))
+        if not os.path.exists(os.path.join(RES_DIR, game['name'])):
+            os.makedirs(os.path.join(RES_DIR, game['name']))
         cv2.imwrite('{}/{}/{}-{}.png'.format(RES_DIR, game['name'], idx-1, idx), final_frame)
 
         if not EVAL_ONLY:
@@ -556,43 +582,61 @@ def process_game(game, classifier_folder):
                 time.sleep(0.1)
             image_queue.put(final_frame)
         
-        loop.set_postfix({'mAP': metrics.mAP()})
+        occupancy_stats = metrics.occupancy_stats()
+        piece_stats = metrics.piece_stats()
+        loop.set_postfix({'mAP': metrics.mAP(), 'PiecePrec': piece_stats,
+                           'Occ-F1': occupancy_stats['f1'], 'Board': metrics.board_accuracy()})
 
         image_path1 = image_path2
         image1 = image2
         board1 = board2
 
-    time.sleep(0.01)
+    time.sleep(0.001)
     
     
     metrics.confusion_matrix()
-    metrics.draw_confusion_matrix(game['name'])
+    metrics.draw_confusion_matrix(game['name'], os.path.join(RES_DIR, 'plots'))
+    logger.info("Confusion Matrix saved for game {}\n".format(game['name']))
+    print("Confusion Matrix saved for game {}\n".format(game['name']))
 
     with open('{}/{}.txt'.format(RES_DIR, game['name']), 'w') as f:
         f.write("Recognised Boards:" + str(metrics.recognised_boards()) + "\n")
+        f.write("Board accuracy:" + str(metrics.board_accuracy()) + "\n")
         f.write("Occupancy stats:\n")
         f.write(str(metrics.occupancy_stats()))
         f.write("\n\nPiece stats:\n")
         f.write(str(metrics.piece_stats()))
         f.write("\n\nmAP: " + str(metrics.mAP()))
 
-    with open('FEN-{}/{}.txt'.format(RES_DIR, game['name']), 'w') as f:
+    with open('{}/FEN-{}.txt'.format(RES_DIR, game['name']), 'w') as f:
         f.write('\n'.join(fens))
+
+    print("Game {} processed successfully\n".format(game['name']))
+    logger.info("Game {} processed successfully\n".format(game['name']))
+    
+    return metrics
     
 
 def main(dataset, classifier_folder):
     classifier_folder = URI("models://transfer_learning")
-
+    global_metrics = Metrics()
     for game in dataset:
         logger.info("Processing game {}(N. Images:{})\n".format(dataset[game]['name'], len(dataset[game]['images'])))
         try:
-            process_game(dataset[game], classifier_folder)
+            metrics = process_game(dataset[game], classifier_folder)
+            global_metrics.transfer_values(metrics)
         except Exception as e:
             logger.error("Failed to process game {}\n".format(game))
             logger.error(e)
             print(e)
-            failed_execution = True
-            exit(1)
+            global_metrics.transfer_values(metrics)
+            metrics.reset()
+            continue
+
+            
+    global_metrics.create_report(RES_DIR)
+    global_metrics.draw_confusion_matrix('Global', os.path.join(RES_DIR, 'plots'))
+
 
 
 if __name__ == '__main__':
@@ -614,8 +658,11 @@ if __name__ == '__main__':
     DATADIR = args.datadir
     PGN_DIR = args.pgndir
     EVAL = not args.noeval # TODO INTEGRATE
-    RES_DIR = args.resdir
     POSTPROCESS = not args.nopostprocess
+    RES_DIR = args.resdir + '/' + args.model_dir.split('/')[-1] + ('_post' if POSTPROCESS else '')
+    if not os.path.exists(RES_DIR):
+        os.makedirs(RES_DIR)
+        os.makedirs(RES_DIR + '/plots')
     EVAL_ONLY = args.eval_only
     classifier_folder = args.model_dir
     MAX_RETRIES = args.max_retries
@@ -638,6 +685,11 @@ if __name__ == '__main__':
     logger.addHandler(stdout_handler)
     logger.addHandler(file_handler)
 
+    if not os.path.exists(RES_DIR):
+        os.makedirs(RES_DIR)
+    if not os.path.exists(os.path.join(RES_DIR, 'plots')):
+        os.makedirs(os.path.join(RES_DIR, 'plots'))
+
     for arg in vars(args):
         logger.info('{}: {}\n'.format(arg, getattr(args, arg)))
         print('{}: {}\n'.format(arg, getattr(args, arg)))
@@ -648,7 +700,6 @@ if __name__ == '__main__':
         inference_thread = threading.Thread(target=main, args=(dataset, classifier_folder), daemon=True)
         inference_thread.start()
         display_images()
+        inference_thread.join()
     else:
         main(dataset, classifier_folder)
-
-    inference_thread.join()

@@ -57,6 +57,13 @@ conda install cairo pango gdk-pixbuf libffi cairosvg
 
 
 # Usage
+
+## Dataset
+If you have your own set of images to evalute, numbered in any ascending order, you can use the create_dataset.py script to move your images to the dataset folder. This will take a custom folder, which may contain subfolders, and handle the processing and save them in the output dir folder after preprocessing. Run the --rembg flag to remove background from your images, this might be helpful if you have noisy backgrounds with a lot lines. 
+```bash
+python data_processing/create_dataset <source_dir> <dest_dir> #--rembg
+```
+
 For sheer training, evaluating and testing or corner detection the model please refer to the [chesscog](https://github.com/georg-wolflein/chesscog) repository. 
 After populating the train partition of the dataset (data://transfer_learning/train) with images run the following:
 ```bash
@@ -64,8 +71,6 @@ python -m chesscog.transfer_learning.create_dataset
 python -m chesscog.transfer_learning.train
 python -m chesscog.transfer_learning.evaluate 
 # this will return some basic statistics for the model
-python stats.py
-# this will generate a confusion matrix in results/
 ```
 
 If you find the results to be satisfactory, copy the model from runs/ to models://transfer_learning/ and run the main script. This will work on a sequence of images, run main.py with the path to the folder containing the images as an argument.
@@ -75,9 +80,6 @@ python main.py path/to/folder
 
 # Future Work
 The project is still in progress. The following steps are to be implemented:
-
-## Evaluation
-An automatic evaluation and benchmarking process is yet to be implemented.
 
 ## Parsing from video
 The final goal of this project is to parse a chess game from a video. This work is still in progress and yet to be devoloped.

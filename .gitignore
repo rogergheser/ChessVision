@@ -6,6 +6,8 @@ data/
 results/**
 results/*
 .DS_Store
+*.zip
+*.key
 **/.DS_Store
 TODO.txt
 
